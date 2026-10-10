@@ -54,7 +54,7 @@ bool is_connected_on_wifi(){
 }
 
 bool try_connect_on_wifi(){
-    WiFi.begin("EtaDaSa_2.4", "etasamdani");
+    WiFi.begin("VIVOFIBRA-4D58", "CBE041487D");
     const uint32_t start = millis();
 
     while((uint32_t)(millis() - start) < 30000){
@@ -72,6 +72,7 @@ void connectionTask(void *nothing){
     for(;;){
         if(!is_connected_on_wifi()){
             if(try_connect_on_wifi()){
+                printf("[Wi-Fi]: connected\n");
                 // fs::File sconf_bin = fs_open("/mqtt_server.bin", "rb");
 
                 // if(sconf_bin){
