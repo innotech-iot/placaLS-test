@@ -5,24 +5,42 @@
 
 #include "fs.hpp"
 #include "mqtt.hpp"
+#include "stage.hpp"
+#include "IO.hpp"
 
 #define I2C_SDA 8
 #define I2C_SCL 9
 
 Adafruit_MCP23X17 mcp;
 
+typedef struct {
+    int lastlv;
+    int currlv;
+    uint32_t timer;
+} read_input_t;
+
+read_input_t reads[INPUTS_PIN_COUNT] = { 0 };
+
+char device_id[64] = { 0 };
+
+void connection_task(void *nothing);
+void read_inputs_task(void *nothing);
+
 void setup(){
     Serial.begin(115200);
     Wire.begin(I2C_SDA, I2C_SCL);
 
+    IO_output_activate(RELE_LAV);
+    IO_output_activate(RELE_SEC);
+
     pinMode(41, OUTPUT);
     digitalWrite(41, LOW);
-    delay(10);
+    delay(1);
     digitalWrite(41, HIGH);
-    delay(10);
+    delay(1);
 
     if(!fs_init()){
-        printf("[SYS]CRITICAL ERROR\n");
+        printf("[SYS] CRITICAL ERROR\n");
         for(;;);
     }
 
@@ -38,6 +56,12 @@ void setup(){
         mcp.pinMode(i, OUTPUT);
         mcp.digitalWrite(i, LOW);
     }
+
+    IO_output_activate(LED_ENERGIA);
+    reset_stages();
+
+    xTaskCreate(connection_task, "connection", 8192, NULL, 1, NULL);
+    xTaskCreate(read_inputs_task, "reads", 3072, NULL, 1, NULL);
 }
 
 void loop(){
@@ -68,11 +92,14 @@ bool try_connect_on_wifi(){
     return is_connected_on_wifi();
 }
 
-void connectionTask(void *nothing){
+void connection_task(void *nothing){
     for(;;){
         if(!is_connected_on_wifi()){
+            IO_output_deactivate(LED_WIFI);
+
             if(try_connect_on_wifi()){
-                printf("[Wi-Fi]: connected\n");
+                IO_output_activate(LED_WIFI);
+                printf("[Wi-Fi] Connected\n");
                 // fs::File sconf_bin = fs_open("/mqtt_server.bin", "rb");
 
                 // if(sconf_bin){
@@ -111,6 +138,32 @@ void connectionTask(void *nothing){
             }
         }
 
+        else {
+            IO_output_activate(LED_WIFI);
+        }
+
         delay(7000);
+    }
+}
+
+void read_inputs_task(void *nothing){
+    for(;;){
+        for(int i = 0; i < INPUTS_PIN_COUNT; i++){
+            uint32_t filter_timer = i < ESTAGIO_1 ? 200 : 50;
+            uint32_t now = millis();
+
+            bool level = digitalRead(inputs[i].gpio);
+
+            if(level != reads[i].lastlv){
+                reads[i].lastlv = level;
+                reads[i].timer = now;
+            }
+
+            if(level != reads[i].currlv && (uint32_t)(now - reads[i].timer) >= filter_timer){
+                reads[i].currlv = level;
+            }
+        }
+
+        delay(10);
     }
 }
