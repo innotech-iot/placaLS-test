@@ -10,10 +10,6 @@
 #define ACTIVATE_IN_LOW  false
 
 typedef enum {
-    SINAL_LAV_LIVRE = 0,
-    SINAL_LAV_OCUPADA,
-    SINAL_SEC_LIVRE,
-    SINAL_SEC_OCUPADA,
     ESTAGIO_1,
     ESTAGIO_2,
     ESTAGIO_3,
