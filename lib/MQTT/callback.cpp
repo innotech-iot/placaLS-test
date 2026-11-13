@@ -4,15 +4,11 @@
 #include <string.h>
 
 #include "mqtt.h"
-#include "cJSON.h"
+#include "ArduinoJson.h"
 
 #define __callback_priv_lib__ static inline
 
 #define clear_tx_buf() memset(tx_buf, 0, sizeof(tx_buf))
-
-#define del_json_and_return()   \
-    cJSON_Delete(json);         \
-    return
 
 typedef enum {
     CB_SEL_WASHING,
@@ -28,7 +24,8 @@ __callback_priv_lib__ cb_machine_select_t_ machine_is_valid_(const char *mchstr)
 char tx_buf[4096] = { 0 };
 
 void mqtt_callback(const char *topic, char *data){
-#define __topic_is__(topic_id) (!strncmp(topic, all_topics[topic_id].topic_buf, strlen(all_topics[topic_id].topic_buf)))
+#define __topic_is__(topic_id) \
+    (!strncmp(topic, all_topics[topic_id].topic_buf, strlen(all_topics[topic_id].topic_buf)))
 
     printf("[MQTT::CB]> Topic: %s | Payload: %s\n\n\n", topic, data);
 
@@ -44,11 +41,14 @@ void mqtt_callback(const char *topic, char *data){
 }
 
 __callback_priv_lib__ void action_req_topic_(char *data){
-#define publish_tx_buf_etpjo() publish_tx_buf_to_action_topic_((int)ERROR_TO_PARSE_JSON_OBJECT)
-#define publish_tx_buf_ic()    publish_tx_buf_to_action_topic_((int)INVALID_COMMAND)
-#define publish_tx_buf_ok()    publish_tx_buf_to_action_topic_((int)OK)
+#define publish_tx_buf_etpjo()  \
+    publish_tx_buf_to_action_topic_((int)ERROR_TO_PARSE_JSON_OBJECT)
 
-    cJSON *json = cJSON_Parse(data);
+#define publish_tx_buf_ic()     \
+    publish_tx_buf_to_action_topic_((int)INVALID_COMMAND)
+
+#define publish_tx_buf_ok()     \
+    publish_tx_buf_to_action_topic_((int)OK)
 
     typedef enum {
         OK,
@@ -56,28 +56,35 @@ __callback_priv_lib__ void action_req_topic_(char *data){
         INVALID_COMMAND            = -2,
     } result_t_;
 
-    if(!json){
+    JsonDocument json;
+
+    DeserializationError error = deserializeJson(json, data);
+
+    if(error){
         publish_tx_buf_etpjo();
         return;
     }
 
-    cJSON *machine_item = cJSON_GetObjectItem(json, "machine");
+    JsonVariant machine_item = json["machine"];
 
-    if(!machine_item || !cJSON_IsString(machine_item)){
+    if(machine_item.isNull() || !machine_item.is<const char*>()){
         publish_tx_buf_ic();
-        del_json_and_return();
+        return;
     }
 
-    const char *machine_str = cJSON_GetStringValue(machine_item);
+    const char *machine_str = machine_item.as<const char*>();
     cb_machine_select_t_ machine_select = machine_is_valid_(machine_str);
 
-    if(!machine_item || machine_select == CB_SEL_NOTHING){
+    if(machine_select == CB_SEL_NOTHING){
         publish_tx_buf_ic();
-        del_json_and_return();
+        return;
     }
 
     publish_tx_buf_ok();
-    del_json_and_return();
+
+#undef publish_tx_buf_etpjo
+#undef publish_tx_buf_ic
+#undef publish_tx_buf_ok
 }
 
 __callback_priv_lib__ void log_req_topic_(char *data){
@@ -85,6 +92,7 @@ __callback_priv_lib__ void log_req_topic_(char *data){
 }
 
 __callback_priv_lib__ void publish_tx_buf_to_action_topic_(int result){
+    memset(tx_buf, 0, sizeof(tx_buf));
     sprintf(tx_buf, "{'result': %d}", result);
     mqtt_publish(tx_buf, MQTT_ACTION_RES_TOPIC);
 }
@@ -98,11 +106,11 @@ __callback_priv_lib__ cb_machine_select_t_ machine_is_valid_(const char *mchstr)
         return CB_SEL_NOTHING;
     }
 
-    if(mchlen == washlen && !strncmp(mchlen, "washing", washlen)){
+    if(mchlen == washlen && !strncmp(mchstr, "washing", washlen)){
         return CB_SEL_WASHING;
     }
 
-    if(mchlen == dryerlen && !strncmp(mchlen, "dryer", dryerlen)){
+    if(mchlen == dryerlen && !strncmp(mchstr, "dryer", dryerlen)){
         return CB_SEL_DRYER;
     }
 

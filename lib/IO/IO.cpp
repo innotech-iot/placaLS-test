@@ -1,14 +1,14 @@
 #include "IO.hpp"
 
 const gpio_num_t inputs_gpio[INPUTS_PIN_COUNT] = {
-    [SINAL_LAV_LIVRE]   = GPIO_NUM_15,
-    [SINAL_LAV_OCUPADA] = GPIO_NUM_7,
-    [SINAL_SEC_LIVRE]   = GPIO_NUM_17,
-    [SINAL_SEC_OCUPADA] = GPIO_NUM_16,
-    [ESTAGIO_1]         = GPIO_NUM_12,
-    [ESTAGIO_2]         = GPIO_NUM_13,
-    [ESTAGIO_3]         = GPIO_NUM_14,
-    [ESTAGIO_4]         = GPIO_NUM_21,
+    // [SINAL_LAV_LIVRE]   = GPIO_NUM_15,
+    // [SINAL_LAV_OCUPADA] = GPIO_NUM_7,
+    // [SINAL_SEC_LIVRE]   = GPIO_NUM_17,
+    // [SINAL_SEC_OCUPADA] = GPIO_NUM_16,
+    [STAGE_1]         = GPIO_NUM_12,
+    [STAGE_2]         = GPIO_NUM_13,
+    [STAGE_3]         = GPIO_NUM_14,
+    [STAGE_4]         = GPIO_NUM_21,
     [DONGLE_LAV]        = GPIO_NUM_47,
     [DONGLE_SEC]        = GPIO_NUM_48,
     [BOTAO_REDE]        = GPIO_NUM_4
@@ -30,7 +30,7 @@ void IO_init_inputs(){
     for(int i = 0; i < INPUTS_PIN_COUNT; i++){
         pinMode(inputs_gpio[i], INPUT);
         inputs[i].gpio = inputs_gpio[i];
-        inputs[i].activate = i <= ESTAGIO_4 ? ACTIVATE_IN_HIGH : ACTIVATE_IN_LOW;
+        inputs[i].activate = i <= STAGE_4 ? ACTIVATE_IN_HIGH : ACTIVATE_IN_LOW;
     }
 }
 

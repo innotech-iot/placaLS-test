@@ -33,9 +33,17 @@ typedef struct {
     bool started;
 } mcp23017_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool mcp_init(mcp23017_t *mcp);
 bool mcp_get_error(const mcp23017_t *mcp);
 bool mcp_set_mode(mcp23017_t *mcp, mcp_gpio_num_t gpio, mcp_gpio_mode_t mode);
 bool mcp_write(mcp23017_t *mcp, mcp_gpio_num_t gpio, bool value);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // MCP23017_H

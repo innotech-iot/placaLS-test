@@ -1,0 +1,844 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{fancyhdr}
+
+\geometry{
+    a4paper,
+    top=2.5cm,
+    bottom=2.5cm,
+    left=2.5cm,
+    right=2.5cm
+}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    pdftitle={Procedimento de Cadastro e Instalação -- LaundryCtrl},
+    pdfauthor={LaundryCtrl}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{LaundryCtrl}
+\rhead{Procedimento de Cadastro e Instalação}
+\cfoot{\thepage}
+
+\definecolor{codegray}{RGB}{245,245,245}
+\definecolor{codegreen}{RGB}{30,120,60}
+\definecolor{codeblue}{RGB}{30,70,160}
+\definecolor{codepurple}{RGB}{120,50,150}
+
+\lstdefinestyle{code}{
+    backgroundcolor=\color{codegray},
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    rulecolor=\color{black!20},
+    columns=fullflexible,
+    keepspaces=true,
+    showstringspaces=false
+}
+
+\lstdefinestyle{json}{
+    style=code,
+    language={}
+}
+
+\lstdefinestyle{yaml}{
+    style=code,
+    language={}
+}
+
+\lstdefinestyle{http}{
+    style=code,
+    language={}
+}
+
+\newcommand{\mqtt}{MQTTS}
+\newcommand{\http}{HTTP}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+
+    \vspace*{3cm}
+
+    {\Huge\bfseries Procedimento de Cadastro e Instalação\par}
+
+    \vspace{0.5cm}
+
+    {\LARGE LaundryCtrl\par}
+
+    \vspace{2cm}
+
+    {\large Documentação Técnica\par}
+
+    \vfill
+
+    {\large
+    Firmware de Fábrica $\rightarrow$ Configuração $\rightarrow$
+    Provisionamento $\rightarrow$ Instalação
+    \par}
+
+    \vspace{1.5cm}
+
+    {\large \today\par}
+
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+
+Todo dispositivo LaundryCtrl é inicialmente instalado com o firmware de
+fábrica. Nesse estado, o dispositivo opera em modo \textbf{Access Point (AP)}
+e disponibiliza um servidor \http{} embarcado exclusivamente para
+configuração da rede Wi-Fi.
+
+Após a configuração e confirmação das redes Wi-Fi, o dispositivo reinicia e
+conecta-se à rede com melhor sinal.
+
+A partir do momento em que a conexão Wi-Fi é estabelecida, \textbf{todas as
+operações de configuração, provisionamento e instalação são realizadas
+exclusivamente através de \mqtt{}}.
+
+O \http{} não é utilizado para nenhuma configuração operacional após a
+conexão do dispositivo à rede.
+
+O processo é dividido nas seguintes etapas:
+
+\begin{enumerate}
+    \item Configuração das redes Wi-Fi via \http{}.
+    \item Confirmação da configuração Wi-Fi.
+    \item Reinicialização e conexão à rede.
+    \item Conexão ao broker \mqtt{}.
+    \item Configuração do dispositivo via \mqtt{}.
+    \item Provisionamento dos certificados via \mqtt{}.
+    \item Execução do processo de instalação via \mqtt{}.
+    \item Inicialização do firmware de produção.
+\end{enumerate}
+
+
+Cada dispositivo possui um identificador baseado em seu endereço MAC.
+
+O SSID criado pelo dispositivo durante o modo AP possui o formato:
+
+\begin{lstlisting}[style=code]
+laundryctrl-AABBCCDDEEFF
+\end{lstlisting}
+
+onde \texttt{AABBCCDDEEFF} representa o endereço MAC do dispositivo.
+
+Dessa forma, cada dispositivo possui um SSID único.
+
+O servidor \http{} do modo AP utiliza o endereço:
+
+\begin{lstlisting}[style=code]
+192.168.4.1
+\end{lstlisting}
+
+
+\subsection{Modo AP}
+
+Ao iniciar com o firmware de fábrica, o dispositivo cria uma rede Wi-Fi
+própria.
+
+O instalador deve:
+
+\begin{enumerate}
+    \item localizar o SSID \texttt{laundryctrl-id};
+    \item conectar-se à rede;
+    \item acessar \texttt{192.168.4.1};
+    \item configurar uma ou mais redes Wi-Fi;
+    \item confirmar a configuração.
+\end{enumerate}
+
+\textbf{Somente a configuração do Wi-Fi é realizada através de \http{}.}
+
+\subsection{Configuração das redes}
+
+O dispositivo armazena até quatro redes Wi-Fi.
+
+Ele poderá utilizar essas redes para selecionar automaticamente aquela que
+apresentar o melhor sinal.
+
+Apenas uma rede é obrigatória.
+
+\subsubsection{Endpoint}
+
+\begin{lstlisting}[style=code]
+POST /conf/wifi/networks
+\end{lstlisting}
+
+\subsubsection{Rede 1}
+
+\begin{lstlisting}[style=json]
+{
+    "net": 1,
+    "ssid": "ssid",
+    "pswd": "senha"
+}
+\end{lstlisting}
+
+\subsubsection{Rede 2}
+
+\begin{lstlisting}[style=json]
+{
+    "net": 2,
+    "ssid": "ssid",
+    "pswd": "senha"
+}
+\end{lstlisting}
+
+\subsubsection{Rede 3}
+
+\begin{lstlisting}[style=json]
+{
+    "net": 3,
+    "ssid": "ssid",
+    "pswd": "senha"
+}
+\end{lstlisting}
+
+\subsubsection{Rede 4}
+
+\begin{lstlisting}[style=json]
+{
+    "net": 4,
+    "ssid": "ssid",
+    "pswd": "senha"
+}
+\end{lstlisting}
+
+\subsubsection{Resposta}
+
+\begin{lstlisting}[style=json]
+{
+    "result": 1
+}
+\end{lstlisting}
+
+onde:
+
+\begin{itemize}
+    \item \texttt{0}: falha ao salvar a configuração;
+    \item \texttt{1}: configuração salva com sucesso.
+\end{itemize}
+
+
+Após configurar as redes desejadas, o instalador deve informar
+explicitamente ao dispositivo que a configuração está concluída.
+
+\subsection{Endpoint}
+
+\begin{lstlisting}[style=code]
+POST /conf/wifi/confirm
+\end{lstlisting}
+
+O corpo da requisição é vazio.
+
+Ao receber essa requisição, o dispositivo deve:
+
+\begin{enumerate}
+    \item salvar/confirmar o estado da configuração;
+    \item encerrar o modo AP;
+    \item reiniciar;
+    \item selecionar a rede Wi-Fi com melhor sinal;
+    \item conectar-se à rede;
+    \item iniciar a conexão \mqtt{}.
+\end{enumerate}
+
+O instalador será desconectado do AP durante esse processo.
+
+Após essa etapa, \textbf{o \http{} deixa de participar do processo de
+configuração}.
+
+
+Após o reinício, o dispositivo procura as redes previamente configuradas.
+
+Entre as redes disponíveis, ele deve selecionar aquela que apresentar o
+melhor sinal.
+
+Após estabelecer a conexão Wi-Fi, o dispositivo inicia a comunicação com o
+broker \mqtt{}.
+
+A partir desse momento:
+
+\begin{quote}
+\textbf{Toda comunicação de configuração, provisionamento e instalação será
+realizada através de \mqtt{}.}
+\end{quote}
+
+Isso inclui:
+
+\begin{itemize}
+    \item timers das bombas;
+    \item corrente de operação;
+    \item corrente de repouso;
+    \item certificados;
+    \item chave privada;
+    \item CA;
+    \item status de configuração;
+    \item status de instalação.
+\end{itemize}
+
+Não existem endpoints \http{} para essas operações.
+
+
+O dispositivo conecta-se ao broker utilizando seu identificador.
+
+Exemplo:
+
+\begin{lstlisting}[style=code]
+laundryctrl-AABBCCDDEEFF
+\end{lstlisting}
+
+O certificado de fábrica será utilizado inicialmente para permitir a conexão
+necessária ao processo de provisionamento.
+
+Um dispositivo normalmente ainda não possui registro no servidor.
+
+Entretanto, pode ocorrer de um dispositivo previamente registrado ser
+regravado com o firmware de fábrica.
+
+Nesse caso, seu identificador já estará presente no banco de dados.
+
+\textbf{O broker não deve rejeitar a conexão simplesmente porque o dispositivo
+já está registrado.}
+
+O processo deve permitir que o dispositivo obtenha novamente seus
+certificados.
+
+
+Após estabelecer a conexão com o broker, o servidor envia todas as
+configurações operacionais através de \mqtt{}.
+
+\subsection{Timers das bombas}
+
+O dispositivo possui sete timers para acionamento das bombas.
+
+\subsubsection{Tópico}
+
+\begin{lstlisting}[style=code]
+laundryctrl-id/config/pumps/timers
+\end{lstlisting}
+
+\subsubsection{Payload}
+
+\begin{lstlisting}[style=json]
+{
+    "timers": [x, x, x, x, x, x, x]
+}
+\end{lstlisting}
+
+Cada posição do vetor representa o timer de uma das sete bombas.
+
+Os valores são definidos em milissegundos.
+
+\subsubsection{Resultado}
+
+O dispositivo publica o resultado em:
+
+\begin{lstlisting}[style=code]
+laundryctrl-id/config/pumps/timers/result
+\end{lstlisting}
+
+\subsubsection{Payload}
+
+\begin{lstlisting}[style=json]
+{
+    "result": 1
+}
+\end{lstlisting}
+
+onde:
+
+\begin{itemize}
+    \item \texttt{0}: falha ao salvar;
+    \item \texttt{1}: configuração salva com sucesso.
+\end{itemize}
+
+
+O dispositivo possui duas configurações relacionadas à corrente:
+
+\begin{itemize}
+    \item \textbf{corrente de operação};
+    \item \textbf{corrente de repouso}.
+\end{itemize}
+
+Esses valores serão configurados pelo servidor através de \mqtt{}.
+
+\subsection{Tópico}
+
+\begin{lstlisting}[style=code]
+laundryctrl-id/config/current
+\end{lstlisting}
+
+\subsection{Payload}
+
+\begin{lstlisting}[style=json]
+{
+    "operating": x,
+    "idle": y
+}
+\end{lstlisting}
+
+Onde:
+
+\begin{itemize}
+    \item \texttt{operating}: corrente de operação;
+    \item \texttt{idle}: corrente de repouso.
+\end{itemize}
+
+A unidade utilizada deve ser definida de forma consistente entre firmware e
+servidor.
+
+\subsection{Resultado}
+
+O dispositivo publica:
+
+\begin{lstlisting}[style=code]
+laundryctrl-id/config/current/result
+\end{lstlisting}
+
+\subsection{Payload}
+
+\begin{lstlisting}[style=json]
+{
+    "result": 1
+}
+\end{lstlisting}
+
+onde:
+
+\begin{itemize}
+    \item \texttt{0}: falha ao salvar;
+    \item \texttt{1}: configuração salva com sucesso.
+\end{itemize}
+
+
+O dispositivo solicita a CA através do tópico:
+
+\begin{lstlisting}[style=code]
+laundryctrl-id/broker/req/ca
+\end{lstlisting}
+
+\subsection{Payload da requisição}
+
+\begin{lstlisting}[style=json]
+{
+    "request": 1
+}
+\end{lstlisting}
+
+O broker responde:
+
+\begin{lstlisting}[style=json]
+{
+    "result": 1,
+    "document": "[CA completo]"
+}
+\end{lstlisting}
+
+O campo \texttt{document} contém o certificado CA completo.
+
+
+O dispositivo solicita seu certificado através do tópico:
+
+\begin{lstlisting}[style=code]
+laundryctrl-id/broker/req/certificate
+\end{lstlisting}
+
+\subsection{Payload da requisição}
+
+\begin{lstlisting}[style=json]
+{
+    "request": 1
+}
+\end{lstlisting}
+
+O broker responde:
+
+\begin{lstlisting}[style=json]
+{
+    "result": 1,
+    "document": "[CERTIFICADO completo]"
+}
+\end{lstlisting}
+
+O dispositivo solicita sua chave através do tópico:
+
+\begin{lstlisting}[style=code]
+laundryctrl-id/broker/req/key
+\end{lstlisting}
+
+\subsection{Payload da requisição}
+
+\begin{lstlisting}[style=json]
+{
+    "request": 1
+}
+\end{lstlisting}
+
+O broker responde:
+
+\begin{lstlisting}[style=json]
+{
+    "result": 1,
+    "document": "[CHAVE completa]"
+}
+\end{lstlisting}
+
+A chave deve ser armazenada de forma segura no dispositivo.
+
+Depois que CA, certificado e chave forem recebidos e armazenados
+corretamente, o dispositivo publica:
+
+\begin{lstlisting}[style=code]
+laundryctrl-id/broker/register/result
+\end{lstlisting}
+
+\subsection{Sucesso}
+
+\begin{lstlisting}[style=json]
+{
+    "register": 1
+}
+\end{lstlisting}
+
+\subsection{Falha}
+
+\begin{lstlisting}[style=json]
+{
+    "register": 0
+}
+\end{lstlisting}
+
+Onde:
+
+\begin{itemize}
+    \item \texttt{0}: falha ao salvar os arquivos;
+    \item \texttt{1}: arquivos salvos com sucesso.
+\end{itemize}
+
+Após concluir o provisionamento e receber as configurações necessárias, o
+dispositivo inicia automaticamente o processo de instalação.
+
+A instalação normalmente possui duração entre 2 e 5 minutos.
+
+O progresso da instalação é informado \textbf{exclusivamente através de
+MQTTS}.
+
+Não existe endpoint HTTP para consulta do progresso.
+
+\subsection{Tópico}
+
+\begin{lstlisting}[style=code]
+laundryctrl-id/installation/status
+\end{lstlisting}
+
+O dispositivo publica automaticamente seu estado.
+
+\subsection{Durante a instalação}
+
+\begin{lstlisting}[style=json]
+{
+    "status": "0-100%"
+}
+\end{lstlisting}
+
+\subsection{Instalação concluída}
+
+\begin{lstlisting}[style=json]
+{
+    "status": "completed"
+}
+\end{lstlisting}
+
+\subsection{Instalação com falha}
+
+\begin{lstlisting}[style=json]
+{
+    "status": "failed"
+}
+\end{lstlisting}
+
+Caso o processo de instalação falhe, o dispositivo reinicia automaticamente
+e tenta realizar novamente o processo.
+
+Não é necessário repetir a configuração inicial do Wi-Fi, desde que as redes
+tenham sido salvas corretamente.
+
+As configurações armazenadas anteriormente também podem ser utilizadas
+novamente pelo dispositivo.
+
+Quando o processo de instalação for concluído com sucesso, o dispositivo
+inicia normalmente com o firmware de produção.
+
+A partir desse momento, o equipamento entra em seu estado operacional normal.
+
+A comunicação entre o dispositivo e o broker utiliza MQTTS com TLS.
+
+O firmware de fábrica possui credenciais suficientes para estabelecer a
+comunicação inicial necessária ao processo de provisionamento.
+
+Durante o processo de registro, o dispositivo obtém:
+
+\begin{itemize}
+    \item CA;
+    \item certificado;
+    \item chave privada.
+\end{itemize}
+
+Esses arquivos passam a ser utilizados para as conexões MQTTS subsequentes.
+
+Os dados armazenados na memória do dispositivo são protegidos pelos
+mecanismos de criptografia de memória disponíveis no hardware.
+
+\begin{lstlisting}[style=yaml]
+                    FIRMWARE DE FÁBRICA
+                            |
+                            v
+                     MODO AP / HTTP
+                            |
+                            v
+                Configurar redes Wi-Fi
+                            |
+                            v
+                 POST /conf/wifi/confirm
+                            |
+                            v
+                        REBOOT
+                            |
+                            v
+                 Conectar ao melhor Wi-Fi
+                            |
+                            v
+                         MQTTS
+                            |
+             +--------------+--------------+
+             |              |              |
+             v              v              v
+        Configurações   Provisionamento  Instalação
+        operacionais      de credenciais   |
+             |              |              |
+             |      +-------+-------+      |
+             |      |       |       |      |
+             |      v       v       v      |
+             |      CA    CERT    KEY      |
+             |                              |
+             +--------------+---------------+
+                            |
+                            v
+                  installation/status
+                            |
+                  +---------+---------+
+                  |                   |
+                  v                   v
+               FAILED             COMPLETED
+                  |                   |
+                  v                   v
+                REBOOT          FIRMWARE DE
+                  |              PRODUÇÃO
+                  |
+                  +----> Tentar novamente
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\caption{Endpoints HTTP utilizados durante o cadastro}
+\label{tab:http}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\textwidth}{l c X}
+\toprule
+\textbf{Endpoint} & \textbf{Método} & \textbf{Finalidade} \\
+\midrule
+\texttt{/conf/wifi/networks}
+&
+POST
+&
+Configuração das redes Wi-Fi
+\\
+
+\texttt{/conf/wifi/confirm}
+&
+POST
+&
+Confirmação da configuração e autorização para reiniciar
+\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Esses são os únicos endpoints HTTP utilizados no processo.}
+
+\begin{longtable}{p{0.39\textwidth} p{0.18\textwidth} p{0.35\textwidth}}
+\caption{Tópicos MQTTS utilizados no processo}
+\label{tab:mqtt}
+\\
+\toprule
+\textbf{Tópico} & \textbf{Direção} & \textbf{Finalidade} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{Tópico} & \textbf{Direção} & \textbf{Finalidade} \\
+\midrule
+\endhead
+
+\texttt{laundryctrl-id/config/pumps/timers}
+&
+Broker $\rightarrow$ dispositivo
+&
+Configuração dos timers das bombas
+\\
+
+\texttt{laundryctrl-id/config/pumps/timers/result}
+&
+Dispositivo $\rightarrow$ broker
+&
+Resultado da configuração dos timers
+\\
+
+\texttt{laundryctrl-id/config/current}
+&
+Broker $\rightarrow$ dispositivo
+&
+Configuração das correntes de operação e repouso
+\\
+
+\texttt{laundryctrl-id/config/current/result}
+&
+Dispositivo $\rightarrow$ broker
+&
+Resultado da configuração das correntes
+\\
+
+\texttt{laundryctrl-id/broker/req/ca}
+&
+Dispositivo $\rightarrow$ broker
+&
+Solicitação da CA
+\\
+
+\texttt{laundryctrl-id/broker/req/certificate}
+&
+Dispositivo $\rightarrow$ broker
+&
+Solicitação do certificado
+\\
+
+\texttt{laundryctrl-id/broker/req/key}
+&
+Dispositivo $\rightarrow$ broker
+&
+Solicitação da chave privada
+\\
+
+\texttt{laundryctrl-id/broker/register/result}
+&
+Dispositivo $\rightarrow$ broker
+&
+Resultado do provisionamento
+\\
+
+\texttt{laundryctrl-id/installation/status}
+&
+Dispositivo $\rightarrow$ broker
+&
+Progresso da instalação
+\\
+
+\bottomrule
+\end{longtable}
+
+\begin{table}[H]
+\centering
+\caption{Interfaces utilizadas em cada etapa do processo}
+\label{tab:interfaces}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\textwidth}{X c c}
+\toprule
+\textbf{Etapa} & \textbf{HTTP} & \textbf{MQTTS} \\
+\midrule
+
+Configuração das redes Wi-Fi
+& Sim
+& Não
+\\
+
+Confirmação do Wi-Fi
+& Sim
+& Não
+\\
+
+Timers das bombas
+& Não
+& Sim
+\\
+
+Corrente de operação
+& Não
+& Sim
+\\
+
+Corrente de repouso
+& Não
+& Sim
+\\
+
+Solicitação da CA
+& Não
+& Sim
+\\
+
+Solicitação do certificado
+& Não
+& Sim
+\\
+
+Solicitação da chave
+& Não
+& Sim
+\\
+
+Resultado do provisionamento
+& Não
+& Sim
+\\
+
+Status da instalação
+& Não
+& Sim
+\\
+
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{quote}
+\textbf{
+HTTP é utilizado somente enquanto o dispositivo está no processo de
+configuração inicial do Wi-Fi. Depois que o dispositivo reinicia e estabelece
+sua conexão Wi-Fi, todo o restante do processo ocorre exclusivamente através
+de MQTTS.
+}
+\end{quote}
+
+\end{document}

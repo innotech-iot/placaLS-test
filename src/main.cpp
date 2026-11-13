@@ -2,171 +2,57 @@
 #include <Wire.h>
 #include <WiFi.h>
 
-#include "fs.hpp"
-#include "mqtt.hpp"
-#include "stage.hpp"
+// #include "fs.hpp"
+#include "mqtt.h"
+// #include "stage.hpp"
 #include "IO.hpp"
 
-#define I2C_SDA 8
-#define I2C_SCL 9
+// #define I2C_SDA 8
+// #define I2C_SCL 9
 
-typedef struct {
-    int lastlv;
-    int currlv;
-    uint32_t timer;
-} read_input_t;
-
-read_input_t reads[INPUTS_PIN_COUNT] = { 0 };
-
-char device_id[64] = { 0 };
-
-void connection_task(void *nothing);
-void read_inputs_task(void *nothing);
+extern uint8_t connected;
 
 void setup(){
     /** Init esp32s3 peripherals */
-    Serial.begin(115200);
-    Wire.begin(I2C_SDA, I2C_SCL);
+    WiFi.disconnect();
 
-    /** Init IOs */
-    IO_init_inputs();
-    IO_init_outputs();
-
-    /** Force relays to low level */
-    IO_output_deactivate(RELE_LAV);
-    IO_output_deactivate(RELE_SEC);
-
-    /** Pulse to activate MCP23017 */
-    IO_output_deactivate(MCP_RESET);
-    delay(1);
-    IO_output_activate(MCP_RESET);
-    delay(1);
-
-    for(int i = 0; i <= 7; i++){
-        mcp.pinMode(i, OUTPUT);
-        mcp.digitalWrite(i, LOW);
+    while(!WiFi.isConnected()){
+        WiFi.disconnect();
+        WiFi.begin("EtaDaSa_2.4", "etasamdani");
+        delay(5000);
     }
 
-    /** Initialize filesystem ( littlefs ) */
-    if(!fs_init()){
-        printf("[SYS] CRITICAL ERROR\n");
-        for(;;);
-    }
+    delay(2000);
 
-    if(!mcp.begin_I2C(0x20, &Wire)){
-        Serial.println("Erro ao inicializar MCP23017");
+    mqtt_conn_t conn = { 0 };
+    conn.uri = MQTT_DEFAULT_URI;
+    conn.client_id = "esp-teste-01";
 
-        while(true){
-            delay(1000);
-        }
-    }
-
-    IO_output_activate(LED_ENERGIA);
-    reset_stages();
-
-    xTaskCreate(connection_task, "connection", 8192, NULL, 1, NULL);
-    xTaskCreate(read_inputs_task, "reads", 3072, NULL, 1, NULL);
+    printf("mqtt err: %d\n\n", (int)mqtt_connection(&conn));
 }
 
 void loop(){
-    for(int i = 0; i <= 7; i++){
-        mcp.digitalWrite(i, HIGH);
-        delay(1500);
-        mcp.digitalWrite(i, LOW);
-        delay(1500);
-    }
-}
-
-bool is_connected_on_wifi(){
-    return WiFi.status() == WL_CONNECTED;
-}
-
-bool try_connect_on_wifi(){
-    WiFi.begin();
-    const uint32_t start = millis();
-
-    while((uint32_t)(millis() - start) < 30000){
-        if(is_connected_on_wifi()){
-            return true;
-        }
-
-        delay(100);
+    if(connected){
+        char payload[] = "{'result': 0}";
+        mqtt_publish(payload, MQTT_ACTION_RES_TOPIC);
     }
 
-    return is_connected_on_wifi();
+    delay(2000);
 }
 
-void connection_task(void *nothing){
-    for(;;){
-        if(!is_connected_on_wifi()){
-            IO_output_deactivate(LED_WIFI);
+/*
 
-            if(try_connect_on_wifi()){
-                IO_output_activate(LED_WIFI);
-                printf("[Wi-Fi] Connected\n");
-                fs::File sconf_bin = fs_open("/mqtt/server.conf", "rb");
+/home/ton618/.platformio/packages/tool-esptool/esptool \
+    --chip esp32s3 \
+    --port /dev/ttyACM0 \
+    --baud 460800 \
+    write-flash -z \
+    --flash-mode dio \
+    --flash-freq 80m \
+    --flash-size 8MB \
+    0x0000 .pio/build/esp32-s3-devkitc-1/bootloader.bin \
+    0x8000 .pio/build/esp32-s3-devkitc-1/partitions.bin \
+    0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
+    0x80000 .pio/build/esp32-s3-devkitc-1/firmware.bin
 
-                if(sconf_bin){
-                    if(fs_size(&sconf_bin) == sizeof(mqtt_server_conf_t)){
-                        mqtt_server_conf_t sconf = { 0 };
-
-                        int read_size = fs_read(
-                            &sconf_bin,
-                            reinterpret_cast<uint8_t*>(&sconf),
-                            sizeof(sconf)
-                        );
-
-                        if(read_size == sizeof(sconf) && sconf.magic == MQTT_SERVER_MAGIC){
-                            mqtt_conn_t conn = { 0 };
-                            char uri[128];
-
-                            int uri_size = snprintf(
-                                uri, sizeof(uri),
-                                "mqtt://%s:%u",
-                                sconf.host,
-                                sconf.port
-                            );
-
-                            if(uri_size > 0 && (size_t)uri_size < sizeof(uri)){
-                                conn.uri = uri;
-                                conn.client_id = "cli-test";
-
-                                mqtt_connect(&conn);
-                            }
-                        }
-                    }
-
-                    fs_close(&sconf_bin);
-                }
-            }
-        }
-
-        else {
-            IO_output_activate(LED_WIFI);
-        }
-
-        delay(7000);
-    }
-}
-
-void read_inputs_task(void *nothing){
-    for(;;){
-        for(int i = 0; i < INPUTS_PIN_COUNT; i++){
-            uint32_t filter_timer = i < ESTAGIO_1 ? 200 : 50;
-            uint32_t now = millis();
-
-            bool level = digitalRead(inputs[i].gpio);
-
-            if(level != reads[i].lastlv){
-                reads[i].lastlv = level;
-                reads[i].timer = now;
-            }
-
-            if(level != reads[i].currlv && (uint32_t)(now - reads[i].timer) >= filter_timer){
-                reads[i].currlv = level;
-            }
-        }
-
-        delay(10);
-    }
-}
+*/

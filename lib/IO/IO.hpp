@@ -10,10 +10,10 @@
 #define ACTIVATE_IN_LOW  false
 
 typedef enum {
-    ESTAGIO_1,
-    ESTAGIO_2,
-    ESTAGIO_3,
-    ESTAGIO_4,
+    STAGE_1,
+    STAGE_2,
+    STAGE_3,
+    STAGE_4,
     DONGLE_LAV,
     DONGLE_SEC,
     BOTAO_REDE,

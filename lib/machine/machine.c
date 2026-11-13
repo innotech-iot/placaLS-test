@@ -10,7 +10,7 @@
 
 #define __machine_lock__()                                      \
     if(machine->semph){                                         \
-        xSemaphoreTake(machine->semph, pdMS_TO_TICKS(1000));    \
+        xSemaphoreTake(machine->semph, pdMS_TO_TICKS(5000));    \
     }
 
 #define __machine_unlock__()                \
