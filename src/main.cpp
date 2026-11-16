@@ -31,7 +31,7 @@ void setup(){
     printf("mqtt err: %d\n\n", (int)mqtt_connection(&conn));
 }
 
-void loop(){
+void __loop__(){
     if(connected){
         char payload[] = "{'result': 0}";
         mqtt_publish(payload, MQTT_ACTION_RES_TOPIC);

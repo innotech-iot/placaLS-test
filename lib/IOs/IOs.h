@@ -15,8 +15,8 @@ typedef enum {
     STAGE_2,
     STAGE_3,
     STAGE_4,
-    DONGLE_LAV,
-    DONGLE_SEC,
+    DONGLE_WAS,
+    DONGLE_DRY,
     BOTAO_REDE,
     DINPUTS_PIN_COUNT
 } digital_inputs_num_t;

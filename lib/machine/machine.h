@@ -8,7 +8,8 @@
 #define MAX_PUMPS_USED_PER_STAGE 7
 #define NUM_OF_STAGES            4
 
-#define MACHINE_METADATA_MAGIC_NUM 0x20771984
+#define MACHINE_METADATA_MAGIC_NUM    0x20771984
+#define MACHINE_METADATA_LAST_VERSION 1
 
 #define washing_setup()                 machine_setup(&washing, MACHINE_WASHING)
 #define washing_set_state(STN)          machine_set_state(&washing, STN)
@@ -25,6 +26,8 @@
 #define dryer_set_stage_pumps(STN, P)   machine_set_stage_pumps(&dryer, STN, P)
 #define dryer_history()                 machine_history(&dryer)
 #define dryer_get_st()                  washing_history().state
+
+typedef bool machine_bool_t;
 
 typedef enum {
     MACHINE_WASHING,
@@ -47,7 +50,7 @@ typedef enum {
 } machine_st_t;
 
 typedef enum {
-    MACHINE_OK,
+    MACHINE_SYS_OK,
     MACHINE_MCP_ERR,
     MACHINE_RTC_ERR,
     MACHINE_MEM_ERR,
@@ -85,18 +88,25 @@ typedef struct {
 } machine_stage_t;
 
 typedef struct {
-    machine_stage_t   stage[NUM_OF_STAGES];
-    machine_st_t      state;
-    machine_sys_err_t err;
+    machine_stage_t     stage[NUM_OF_STAGES];
+    machine_stage_num_t st_num;
+    machine_st_t        state;
+    machine_sys_err_t   err;
+    machine_bool_t      was_in_oper; /** Was in operation */
+    machine_bool_t      locked;
+    machine_bool_t      pumps_already_used;
+    int64_t             start_oper_tm; /** Start operation timestamp */
 } machine_history_t;
 
 typedef struct {
     uint32_t magic_num;
+    uint32_t version;
 } machine_history_metadata_t;
 
 typedef struct {
     machine_select_t  select;
     machine_history_t history;
+    machine_bool_t    boot_verify;
     SemaphoreHandle_t semph;
 } machine_t;
 
@@ -105,7 +115,10 @@ machine_err_t machine_set_state(machine_t *machine, machine_st_t state);
 machine_err_t machine_set_stage_pumps(machine_t *machine, machine_stage_num_t st_num, machine_pumps_t *pumps, uint8_t counter);
 machine_err_t machine_run(machine_t *machine);
 machine_err_t machine_set_stage(machine_t *machine);
+machine_err_t machine_set_locked(machine_t *machine, machine_bool_t locked);
 machine_history_t machine_history(machine_t *machine);
+
+bool machine_is_locked(machine_t *machine);
 
 extern machine_t washing;
 extern machine_t dryer;

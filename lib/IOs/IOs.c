@@ -3,7 +3,7 @@
 #include "FreeRTOS.h"
 
 #define EMPTY_BUFFER { 0 }
-#define loop for(;;)
+#define __loop__ for(;;)
 
 #define __ios_priv_lib__ static inline
 
@@ -12,8 +12,8 @@ const gpio_num_t dinputs_gpio[DINPUTS_PIN_COUNT] = {
     [STAGE_2]    = GPIO_NUM_13,
     [STAGE_3]    = GPIO_NUM_14,
     [STAGE_4]    = GPIO_NUM_21,
-    [DONGLE_LAV] = GPIO_NUM_47,
-    [DONGLE_SEC] = GPIO_NUM_48,
+    [DONGLE_WAS] = GPIO_NUM_47,
+    [DONGLE_DRY] = GPIO_NUM_48,
     [BOTAO_REDE] = GPIO_NUM_4
 };
 
@@ -51,7 +51,7 @@ void IOs_start(){
 }
 
 void IOs_read_task_(void *params){
-    loop {
+    __loop__ {
         int curr_reads[DINPUTS_PIN_COUNT] = EMPTY_BUFFER;
 
         for(int i = 0; i < DINPUTS_PIN_COUNT; i++){
@@ -96,4 +96,4 @@ __ios_priv_lib__ void check_switch_state_(bool read, int i){
 }
 
 #undef EMPTY_BUFFER
-#undef loop
+#undef __loop__

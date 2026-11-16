@@ -9,8 +9,8 @@ const gpio_num_t inputs_gpio[INPUTS_PIN_COUNT] = {
     [STAGE_2]         = GPIO_NUM_13,
     [STAGE_3]         = GPIO_NUM_14,
     [STAGE_4]         = GPIO_NUM_21,
-    [DONGLE_LAV]        = GPIO_NUM_47,
-    [DONGLE_SEC]        = GPIO_NUM_48,
+    [DONGLE_WAS]        = GPIO_NUM_47,
+    [DONGLE_DRY]        = GPIO_NUM_48,
     [BOTAO_REDE]        = GPIO_NUM_4
 };
 

@@ -42,6 +42,8 @@ bool mcp_get_error(const mcp23017_t *mcp);
 bool mcp_set_mode(mcp23017_t *mcp, mcp_gpio_num_t gpio, mcp_gpio_mode_t mode);
 bool mcp_write(mcp23017_t *mcp, mcp_gpio_num_t gpio, bool value);
 
+extern mcp23017_t mcp;
+
 #ifdef __cplusplus
 }
 #endif
