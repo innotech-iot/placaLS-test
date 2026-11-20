@@ -5,7 +5,7 @@
 // #include "fs.hpp"
 #include "mqtt.h"
 // #include "stage.hpp"
-#include "IO.hpp"
+// #include "IO.hpp"
 
 // #define I2C_SDA 8
 // #define I2C_SCL 9
@@ -31,13 +31,13 @@ void setup(){
     printf("mqtt err: %d\n\n", (int)mqtt_connection(&conn));
 }
 
-void __loop__(){
+void loop(){
     if(connected){
         char payload[] = "{'result': 0}";
         mqtt_publish(payload, MQTT_ACTION_RES_TOPIC);
     }
 
-    delay(2000);
+    delay(200);
 }
 
 /*

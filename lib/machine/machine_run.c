@@ -1,25 +1,22 @@
 #include "machine.h"
 #include "mcp23017.h"
 #include "mqtt_services.h"
+#include "get_time.h"
 #include "IOs.h"
 
-#define __machine_violation_guard__(machine)        \
-    do {                                            \
-        __machine_violation_guard__(machine);       \
-                                                    \
-        if(machine_is_locked(machine)){             \
-            continue;                               \
-        }                                           \
-    } while(false)
+#define __machine_violation_guard__(machine)    \
+    machine_violation_guard(machine);           \
+                                                \
+    if(machine_is_locked(machine)){             \
+        continue;                               \
+    }
 
-#define __machine_error_guard__(machine)            \
-    do{                                             \
-        machine_error_guard(machine, &already_err); \
-                                                    \
-        if(machine.history.state == MACHINE_ERROR){ \
-            continue;                               \
-        }                                           \
-    } while(false)
+#define __machine_error_guard__(machine)        \
+    machine_error_guard(machine, &already_err); \
+                                                \
+    if(machine.history.state == MACHINE_ERROR){ \
+        continue;                               \
+    }
 
 #define __machine_is_washing__() ( machine->select == MACHINE_WASHING )
 
@@ -32,7 +29,7 @@ __machine_priv_lib__ void deactivate_pumps();
 
 __machine_priv_lib__ washing_run_task(void *params){
     bool already_err = washing.history.state == MACHINE_ERROR;
-    machine_stage_num_t last_stage = washing.history.st_num;
+    machine_stage_num_t last_stage = washing.history.stage_num;
 
     __loop__ {
         vTaskDelay(pdMS_TO_TICKS(10));
@@ -71,6 +68,48 @@ __machine_priv_lib__ void deactivate_pumps(){
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
+
+__machine_priv_lib__ uint8_t num_of_activates_stages(bool *stages){
+    uint8_t num = 0;
+
+    for(int i = 0; i < NUM_OF_STAGES; i++){
+        if(stages[i]){
+            num++;
+        }
+    }
+
+    return num;
+}
+
+__machine_priv_lib__ void washing_controller(){
+    bool stages[NUM_OF_STAGES] = { 0 };
+
+    for(int i = 0; i < NUM_OF_STAGES; i++){
+        stages[i] = IOs_is_activated((digital_inputs_num_t)i);
+    }
+
+    if(washing.history.state == MACHINE_BUSY){
+        // if(get)
+
+        machine_stage_num_t curr_stage = washing.history.stage_num;
+
+        if(curr_stage == MACHINE_STAGE_I){
+            if(num_of_activates_stages(stages)){
+
+            }
+        }
+    }
+}
+
+/*
+
+1 - recebe comando do broker
+2 - verifica se está livre
+3 - se estiver insere moeda
+4 - aguarda estado
+
+
+*/
 
 #undef __loop__
 #undef __machine_priv_lib__

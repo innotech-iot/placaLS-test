@@ -89,10 +89,9 @@ typedef struct {
 
 typedef struct {
     machine_stage_t     stage[NUM_OF_STAGES];
-    machine_stage_num_t st_num;
+    machine_stage_num_t stage_num;
     machine_st_t        state;
     machine_sys_err_t   err;
-    machine_bool_t      was_in_oper; /** Was in operation */
     machine_bool_t      locked;
     machine_bool_t      pumps_already_used;
     int64_t             start_oper_tm; /** Start operation timestamp */

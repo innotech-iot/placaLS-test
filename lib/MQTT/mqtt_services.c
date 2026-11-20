@@ -49,18 +49,18 @@ mqtt_services_priv_lib__ void monitor_reset_request(){
     __mqtt_services_unlock__(mqtt_monitor);
 }
 
-mqtt_services_priv_lib__ bool monitor_publish_report(){
-    char buffer[2048] = { 0 };
+// mqtt_services_priv_lib__ bool monitor_publish_report(){
+//     char buffer[2048] = { 0 };
 
-    sprintf(
-        buffer,
-        "{"
-        "   'washing': {"
-        "       'status': '%s',"
-        "       'error': %d,"
-        "       '"
-    );
-}
+//     sprintf(
+//         buffer,
+//         "{"
+//         "   'washing': {"
+//         "       'status': '%s',"
+//         "       'error': %d,"
+//         "       '"
+//     );
+// }
 
 mqtt_services_priv_lib__ void monitor_task(void *params){
     __loop__ {

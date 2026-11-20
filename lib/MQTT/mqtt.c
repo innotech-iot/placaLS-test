@@ -68,14 +68,14 @@ __mqtt_priv_lib__ void start_topics_(const char *id);
 __mqtt_priv_lib__ int load_broker_file_(char *fbuf, size_t fbuf_sz, const char *fname);
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
 
-void mqtt_callback(const char *topic, char *data);
+// void mqtt_callback(const char *topic, char *data);
 
 esp_err_t mqtt_connection(mqtt_conn_t *conn){
     if(mqtt){
         return ESP_ERR_INVALID_STATE;
     }
 
-    start_topics_(conn->client_id);
+    start_topics_(/* conn->client_id */ "laundryctrl-AABBCCDDEEFF");
 
 #ifndef FACTORY_MODE
 
@@ -263,7 +263,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             memcpy(data_buf, event->data, event->data_len);
             data_buf[event->data_len] = '\0';
 
-            mqtt_callback(topic_buf, data_buf);
+            // mqtt_callback(topic_buf, data_buf);
             break;
 
         case MQTT_EVENT_ERROR:
