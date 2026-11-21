@@ -74,3 +74,26 @@ bool mcp_write(mcp23017_t *mcp, mcp_gpio_num_t gpio, bool value){
 
     return gpio_st == value;
 }
+
+bool mcp_read_gpiox_state(mcp23017_t *mcp, mcp_gpio_num_t gpio){
+    // int gpio_ = (int)gpio;
+
+    // if(gpio_ < 0 || gpio_ > MCP_GPIO_NUM_0xF){
+    //     mcp->error = true;
+    //     return false;
+    // }
+
+    // uint8_t gpiox;
+
+    // if(gpio_ <= MCP_GPIO_NUM_0x7){
+    //     gpiox = mcp_driver.readGPIOA();
+    // } 
+    
+    // else {
+    //     gpiox = mcp_driver.readGPIOB();
+    // }
+
+    // return (bool)gpiox;
+
+    return true;
+}

@@ -3,8 +3,9 @@
 
 #include "mqtt.h"
 #include "mqtt_client.h"
+#include "callback.h"
 
-#define FACTORY_MODE
+// #define FACTORY_MODE
 
 #define GENERIC_ID "laundryctrl-AABBCCDDEEFF/"
 #define EMPTY_BUF  { 0 }
@@ -15,7 +16,6 @@
 #define FILE_EMPTY                 (-2)
 
 #define MQTT_BROKER_FILES_SZ 2048
-#define MQTT_BUFFER_SIZE     4096
 
 #define __mqtt_priv_lib__ static inline
 
@@ -45,21 +45,24 @@ char topic_status[TOPIC_NAME_LEN("status")]            = EMPTY_BUF;
 char topic_wash_clean[TOPIC_NAME_LEN("washing/clean")] = EMPTY_BUF;
 char topic_debug[TOPIC_NAME_LEN("debug")]              = EMPTY_BUF;
 char topic_lwt[TOPIC_NAME_LEN("lwt")]                  = EMPTY_BUF;
+char topic_set_sw_mode[TOPIC_NAME_LEN("set/software")] = EMPTY_BUF;
 
 const topic_t all_topics[MQTT_NUM_OF_TOPICS] = {
-    { .topic_buf = topic_action_req, .topic_name = "action/req"    },
-    { .topic_buf = topic_action_res, .topic_name = "action/res"    },
-    { .topic_buf = topic_log_req,    .topic_name = "log/req"       },
-    { .topic_buf = topic_log_res,    .topic_name = "log/res"       },
-    { .topic_buf = topic_status,     .topic_name = "status"        },
-    { .topic_buf = topic_wash_clean, .topic_name = "washing/clean" },
-    { .topic_buf = topic_debug,      .topic_name = "debug"         },
-    { .topic_buf = topic_lwt,        .topic_name = "lwt"           }
+    { .topic_buf = topic_action_req,  .topic_name = "action/req"    },
+    { .topic_buf = topic_action_res,  .topic_name = "action/res"    },
+    { .topic_buf = topic_log_req,     .topic_name = "log/req"       },
+    { .topic_buf = topic_log_res,     .topic_name = "log/res"       },
+    { .topic_buf = topic_status,      .topic_name = "status"        },
+    { .topic_buf = topic_wash_clean,  .topic_name = "washing/clean" },
+    { .topic_buf = topic_debug,       .topic_name = "debug"         },
+    { .topic_buf = topic_lwt,         .topic_name = "lwt"           },
+    { .topic_buf = topic_set_sw_mode, .topic_name = "set/software"  }
 };
 
 char *sub_topics[] = { 
     topic_action_req, topic_log_req,
-    topic_wash_clean, topic_debug
+    topic_wash_clean, topic_debug,
+    topic_set_sw_mode
 };
 
 uint8_t connected = 0;
@@ -68,29 +71,37 @@ __mqtt_priv_lib__ void start_topics_(const char *id);
 __mqtt_priv_lib__ int load_broker_file_(char *fbuf, size_t fbuf_sz, const char *fname);
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
 
-// void mqtt_callback(const char *topic, char *data);
-
 esp_err_t mqtt_connection(mqtt_conn_t *conn){
     if(mqtt){
-        return ESP_ERR_INVALID_STATE;
+        return ESP_OK;
     }
 
     start_topics_(/* conn->client_id */ "laundryctrl-AABBCCDDEEFF");
 
+#ifdef FACTORY_MODE
+    bool tls_enable = true;
+#else
+    bool tls_enable = conn->ca_path != NULL;
+#endif
+
 #ifndef FACTORY_MODE
 
-    static char ca[MQTT_BROKER_FILES_SZ], cert[MQTT_BROKER_FILES_SZ], pkey[MQTT_BROKER_FILES_SZ];
+    static char ca[MQTT_BROKER_FILES_SZ] = "", 
+    cert[MQTT_BROKER_FILES_SZ]           = "", 
+    pkey[MQTT_BROKER_FILES_SZ]           = "";
 
-    if(load_broker_file_(ca, MQTT_BROKER_FILES_SZ, conn->ca_path) <= 0){
-        return ESP_ERR_NOT_FOUND;
-    }
+    if(tls_enable){
+        if(load_broker_file_(ca, MQTT_BROKER_FILES_SZ, conn->ca_path) <= 0){
+            return ESP_ERR_NOT_FOUND;
+        }
 
-    if(load_broker_file_(cert, MQTT_BROKER_FILES_SZ, conn->cert_path) <= 0){
-        return ESP_ERR_NOT_FOUND;
-    }
+        if(load_broker_file_(cert, MQTT_BROKER_FILES_SZ, conn->cert_path) <= 0){
+            return ESP_ERR_NOT_FOUND;
+        }
 
-    if(load_broker_file_(pkey, MQTT_BROKER_FILES_SZ, conn->pkey_path) <= 0){
-        return ESP_ERR_NOT_FOUND;
+        if(load_broker_file_(pkey, MQTT_BROKER_FILES_SZ, conn->pkey_path) <= 0){
+            return ESP_ERR_NOT_FOUND;
+        }
     }
 
     size_t ca_len = strlen(ca) + 1;
@@ -109,57 +120,59 @@ esp_err_t mqtt_connection(mqtt_conn_t *conn){
     
 #endif
 
-    printf("CA len: %zu\n", ca_len);
-    printf("CERT len: %zu\n", cert_len);
-    printf("KEY len: %zu\n", pkey_len);
+    if(tls_enable){
+        printf("CA len: %zu\n", ca_len);
+        printf("CERT len: %zu\n", cert_len);
+        printf("KEY len: %zu\n", pkey_len);
 
-    printf("CA:\n");
-    fwrite(ca, 1, ca_len, stdout);
-    printf("\n");
+        printf("CA:\n");
+        fwrite(ca, 1, ca_len, stdout);
+        printf("\n");
 
-    printf("CERT:\n");
-    fwrite(cert, 1, cert_len, stdout);
-    printf("\n");
+        printf("CERT:\n");
+        fwrite(cert, 1, cert_len, stdout);
+        printf("\n");
 
-    printf("KEY:\n");
-    fwrite(pkey, 1, pkey_len, stdout);
-    printf("\n");
+        printf("KEY:\n");
+        fwrite(pkey, 1, pkey_len, stdout);
+        printf("\n");
+    }
 
-    esp_mqtt_client_config_t conf = {
-        .broker.address.uri = conn->uri,
-        .broker.verification.certificate = ca,
+    esp_mqtt_client_config_t conf = { 0 };
+    conf.broker.address.uri = conn->uri;
+
+    if(tls_enable){
+        conf.broker.verification.certificate = ca;
 #ifdef FACTORY_MODE
-        .broker.verification.certificate_len = 0,
+        conf.broker.verification.certificate_len = 0;
 #else
-        .broker.verification.certificate_len = ca_len;
+        conf.broker.verification.certificate_len = ca_len;
 #endif
-
-        .credentials.authentication.certificate = cert,
+        conf.credentials.authentication.certificate = cert;
 #ifdef FACTORY_MODE
-        .credentials.authentication.certificate_len = 0,
+        conf.credentials.authentication.certificate_len = 0;
 #else
-        .credentials.authentication.certificate_len = cert_len;
+        conf.credentials.authentication.certificate_len = cert_len;
 #endif
-
-        .credentials.authentication.key = pkey,
-    #ifdef FACTORY_MODE
-        .credentials.authentication.key_len = 0,
+        conf.credentials.authentication.key = pkey;
+#ifdef FACTORY_MODE
+        conf.credentials.authentication.key_len = 0;
 #else
-        .credentials.authentication.key_len = pkey_len;
+        conf.credentials.authentication.key_len = pkey_len;
 #endif
+    }
 
-        .credentials.client_id = conn->client_id,
+    conf.credentials.client_id = conn->client_id;
 
-        .buffer.size = MQTT_BUFFER_SIZE,
+    conf.buffer.size = MQTT_BUFFER_SIZE;
 
-        .task.priority = 2,
-        .task.stack_size = 8192,
+    conf.task.priority = 2;
+    conf.task.stack_size = 8192;
 
-        .session.keepalive = 60,
-        .session.last_will.msg = "{\"status\": \"disconnected\"}",
-        .session.last_will.msg_len = sizeof("{\"status\": \"disconnected\"}"),
-        .session.last_will.qos = 0
-    };
+    conf.session.keepalive = 60;
+    conf.session.last_will.msg = "{\"status\": \"disconnected\"}";
+    conf.session.last_will.msg_len = sizeof("{\"status\": \"disconnected\"}");
+    conf.session.last_will.qos = 0;
 
     mqtt = esp_mqtt_client_init(&conf);
 
@@ -186,6 +199,9 @@ esp_err_t mqtt_connection(mqtt_conn_t *conn){
 }
 
 int mqtt_publish(char *data, const mqtt_topics_t topic){
+    printf("\n\n\ndata: %s\n\n\n", data);
+    printf("topic: %s\n\n\n", all_topics[topic].topic_buf);
+
     int len = strlen(data);
 
     for(int i = 0; i < len; i++){
@@ -263,7 +279,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             memcpy(data_buf, event->data, event->data_len);
             data_buf[event->data_len] = '\0';
 
-            // mqtt_callback(topic_buf, data_buf);
+            mqtt_callback(topic_buf, data_buf);
             break;
 
         case MQTT_EVENT_ERROR:

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "machine.h"
 #include "IOs.h"
@@ -39,14 +40,16 @@ machine_err_t machine_setup(machine_t *machine, machine_select_t select){
 
     if(err){
         machine->history.state = MACHINE_ERROR;
-        machine->history.err = MACHINE_MEM_ERR;
+        machine->err = MACHINE_MEM_ERR;
         return err;
     }
 
     err = load_history_history__bin_(machine, select);
 
+    machine->software_mode = true;
+
     machine->history.state = err ? MACHINE_ERROR : machine->history.state;
-    machine->history.err = err ? MACHINE_MEM_ERR : MACHINE_SYS_OK;
+    machine->err = err ? MACHINE_MEM_ERR : MACHINE_SYS_OK;
 
     machine->semph = xSemaphoreCreateMutex();
     machine->boot_verify = true;
@@ -60,7 +63,7 @@ machine_err_t machine_set_state(machine_t *machine, machine_st_t state){
     machine_err_t err = save_history_history__bin_(&machine->history, machine->select);
 
     if(err){
-        machine->history.err = MACHINE_MEM_ERR;
+        machine->err = MACHINE_MEM_ERR;
         __machine_unlock__();
         return err;
     }
@@ -69,7 +72,11 @@ machine_err_t machine_set_state(machine_t *machine, machine_st_t state){
     return MACHINE_OK;
 }
 
-machine_err_t machine_set_stage_pumps(machine_t *machine, machine_stage_num_t st_num, machine_pumps_t *pumps, uint8_t counter){
+machine_err_t machine_set_stage_pumps(
+    machine_t *machine, machine_stage_num_t st_num, 
+    machine_pumps_t *pumps, uint8_t counter, int64_t *timers,
+    uint8_t *number_of_repetitions
+){
     __machine_lock__();
 
     memset(machine->history.stage[st_num].st_pumps.p, MACHINE_PUMP_N, sizeof(machine_pumps_num_t[MAX_PUMPS_USED_PER_STAGE]));
@@ -79,7 +86,7 @@ machine_err_t machine_set_stage_pumps(machine_t *machine, machine_stage_num_t st
     machine_err_t err = save_history_history__bin_(&machine->history, machine->select);
 
     if(err){
-        machine->history.err = MACHINE_MEM_ERR;
+        machine->err = MACHINE_MEM_ERR;
         __machine_unlock__();
         return err;
     }
@@ -105,13 +112,21 @@ bool machine_is_locked(machine_t *machine){
     return locked;
 }
 
+bool machine_is_free(machine_t *machine){
+    __machine_lock__();
+    bool free = IOs_is_activated(machine->select == MACHINE_WASHING ? WASHING_STATE : DRYER_STATE, machine->software_mode);
+    __machine_unlock__();
+
+    return free;
+}
+
 machine_err_t machine_set_locked(machine_t *machine, machine_bool_t locked){
     __machine_lock__();
     machine->history.locked = locked;
     machine_err_t err = save_history_history__bin_(&machine->history, machine->select);
 
     if(err){
-        machine->history.err = MACHINE_MEM_ERR;
+        machine->err = MACHINE_MEM_ERR;
         __machine_unlock__();
         return err;
     }
@@ -195,7 +210,7 @@ __machine_priv_lib__ machine_err_t format_history_(machine_select_t select){
     }
 
     machine_history_t history = EMPTY_BUF;
-    history.st_num = MACHINE_STAGE_I;
+    history.stage_num = MACHINE_STAGE_I;
     
     size_t nwritten = fwrite(&history, sizeof(history), 1, history_bin);
     fclose(history_bin);

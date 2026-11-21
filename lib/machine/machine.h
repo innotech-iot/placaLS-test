@@ -51,12 +51,10 @@ typedef enum {
 
 typedef enum {
     MACHINE_SYS_OK,
-    MACHINE_MCP_ERR,
-    MACHINE_RTC_ERR,
     MACHINE_MEM_ERR,
-    MACHINE_MQTT_BROKER_CERTIFICATE_INV,
     MACHINE_NO_RESPONSE_FROM_WASHING,
     MACHINE_NO_RESPONSE_FROM_DRYER,
+
 } machine_sys_err_t;
 
 typedef enum {
@@ -79,8 +77,10 @@ typedef enum {
 } machine_pumps_num_t;
 
 typedef struct {
-    uint8_t c;                                       /** Used pumps counter */
+    int64_t             t[MAX_PUMPS_USED_PER_STAGE]; /** Duration for which they will remain activated */
     machine_pumps_num_t p[MAX_PUMPS_USED_PER_STAGE]; /** Used pumps */
+    uint8_t             r[MAX_PUMPS_USED_PER_STAGE]; /** Number of repetitions */
+    uint8_t             c;                           /** Used pumps counter */
 } machine_pumps_t;
 
 typedef struct {
@@ -89,11 +89,10 @@ typedef struct {
 
 typedef struct {
     machine_stage_t     stage[NUM_OF_STAGES];
+    machine_bool_t      pumps_already_used[MAX_PUMPS_USED_PER_STAGE];
     machine_stage_num_t stage_num;
     machine_st_t        state;
-    machine_sys_err_t   err;
     machine_bool_t      locked;
-    machine_bool_t      pumps_already_used;
     int64_t             start_oper_tm; /** Start operation timestamp */
 } machine_history_t;
 
@@ -103,17 +102,23 @@ typedef struct {
 } machine_history_metadata_t;
 
 typedef struct {
-    machine_select_t  select;
     machine_history_t history;
-    machine_bool_t    boot_verify;
+    machine_select_t  select;
+    machine_sys_err_t err;
     SemaphoreHandle_t semph;
+    machine_bool_t    boot_verify;
+    machine_bool_t    software_mode;
 } machine_t;
 
 machine_err_t machine_setup(machine_t *machine, machine_select_t select);
 machine_err_t machine_set_state(machine_t *machine, machine_st_t state);
-machine_err_t machine_set_stage_pumps(machine_t *machine, machine_stage_num_t st_num, machine_pumps_t *pumps, uint8_t counter);
-machine_err_t machine_run(machine_t *machine);
-machine_err_t machine_set_stage(machine_t *machine);
+
+machine_err_t machine_set_stage_pumps(
+    machine_t *machine, machine_stage_num_t st_num, 
+    machine_pumps_t *pumps, uint8_t counter, int64_t *timers,
+    uint8_t *number_of_repetitions
+);
+
 machine_err_t machine_set_locked(machine_t *machine, machine_bool_t locked);
 machine_history_t machine_history(machine_t *machine);
 

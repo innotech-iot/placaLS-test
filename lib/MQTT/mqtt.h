@@ -4,7 +4,9 @@
 #include <stdbool.h>
 #include "esp_err.h"
 
-#define MQTT_DEFAULT_URI "mqtts://mqtt-staging.laundryin.com.br:43703"
+#define MQTT_BUFFER_SIZE 4096
+#define MQTT_DEFAULT_URI "mqtt://192.168.0.40:1883"
+// "mqtts://mqtt-staging.laundryin.com.br:43703"
 
 typedef struct {
     const char *uri;
@@ -23,6 +25,7 @@ typedef enum {
     MQTT_WASHING_CLEAN_TOPIC,
     MQTT_DEBUG_TOPIC,
     MQTT_LWT_TOPIC,
+    MQTT_SET_SOFTWARE_MODE,
     MQTT_NUM_OF_TOPICS
 } mqtt_topics_t;
 

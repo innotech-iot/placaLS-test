@@ -22,6 +22,12 @@ typedef enum {
 } digital_inputs_num_t;
 
 typedef enum {
+    WASHING_STATE = DINPUTS_PIN_COUNT,
+    DRYER_STATE,
+    AINPUTS_PIN_COUNT
+} analog_inputs_num_t;
+
+typedef enum {
     RELE_LAV = 0,
     RELE_SEC,
     LED_ENERGIA,
@@ -37,6 +43,7 @@ typedef struct {
     gpio_num_t gpio;
     activate_t state;
     activate_t act_condition;
+    uint16_t   analog_act_condition;
 } IO_t;
 
 #ifdef __cplusplus
@@ -45,10 +52,12 @@ extern "C" {
 
 void IOs_start();
 void IOs_read_task_(void *params);
-bool IOs_is_activated(digital_inputs_num_t din_num);
+bool IOs_is_activated(int in_num, bool read_software);
 
 #ifdef __cplusplus
 }
 #endif
+
+extern IO_t software_in[DINPUTS_PIN_COUNT + AINPUTS_PIN_COUNT];
 
 #endif // __libios_ios_h__

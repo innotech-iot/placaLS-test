@@ -17,7 +17,7 @@ typedef struct {
         struct {
             SemaphoreHandle_t semph;
         } os_src;
-    } private;
+    } private_;
 } mqtt_monitor_t;
 
 #ifdef __cplusplus
